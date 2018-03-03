@@ -560,7 +560,7 @@ public class PanelWindowHost : PanelAbstractWindow {
     const string BRIGHTNESS_PROP_IFACE = "org.gnome.SettingsDaemon.Power.Screen";
     const string BRIGHTNESS_PROP_NAME = "Brightness";
     private HashMap <unowned Wnck.Window, unowned PanelWindowEntry> entry_map ;
-    private int height = 24;
+    private int height = 26;
     PanelWindowEntryDescriptions descriptions;
     PanelCalendar calendar;
     PanelHotkey hotkey;
