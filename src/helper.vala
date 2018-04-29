@@ -1,3 +1,34 @@
+[DBus (name="org.freedesktop.DBus")]
+public interface DBusService : Object
+{
+    public abstract string[] list_names() throws IOError;
+    public signal void name_owner_changed(string name, string old_owner, string new_owner);
+}
+
+[DBus (name="org.mpris.MediaPlayer2")]
+public interface MprisIface : Object
+{
+    public abstract async void raise() throws IOError;
+    public abstract async void quit() throws IOError;
+
+    public abstract bool can_quit { get; set; }
+    public abstract bool can_raise { get; }
+}
+
+[DBus (name="org.mpris.MediaPlayer2.Player")]
+public interface PlayerIface : MprisIface
+{
+    public abstract async void next() throws IOError;
+    public abstract async void previous() throws IOError;
+    public abstract async void pause() throws IOError;
+    public abstract async void play_pause() throws IOError;
+    public abstract async void stop() throws IOError;
+    public abstract async void play() throws IOError;
+
+    public abstract string playback_status { owned get; }
+    public abstract string loop_status { owned get; set; }
+}
+
 namespace Helper {
     public bool launch_search () {
         try {
@@ -260,6 +291,72 @@ namespace Helper {
         return result;
     }
 
+    public static void on_name_owner_changed(string? n, string? owner, string? new_owner)
+    {
+        if (!n.has_prefix("org.mpris.MediaPlayer2.")) {
+            return;
+        }
+
+        if (owner == "") {
+            print("new player: %s\n", n);
+            print("owner: %s\n", new_owner);
+        } else {
+            Idle.add(()=> {
+                print("player exited: %s\n", n);
+                print("owner: %s\n", owner);
+                return false;
+            });
+        }
+    }
+
+    public static JSCore.Value js_media_control (JSCore.Context ctx,
+            JSCore.Object function,
+            JSCore.Object thisObject,
+            JSCore.Value[] arguments,
+            out JSCore.Value exception) {
+
+        exception = null;
+        if (arguments.length == 1) {
+            DBusService impl;
+            PlayerIface? player = null;
+            var s = arguments [0].to_string_copy (ctx, null);
+            char buffer[1024];
+            s.get_utf8_c_string (buffer, buffer.length);
+            try {
+                impl = Bus.get_proxy_sync(BusType.SESSION, "org.freedesktop.DBus", "/org/freedesktop/DBus");
+                var names = impl.list_names();
+
+                foreach (var name in names) {
+                    if (name.has_prefix("org.mpris.MediaPlayer2.")) {
+                        try {
+                            player = Bus.get_proxy_sync(BusType.SESSION, name, "/org/mpris/MediaPlayer2");
+                            if ((string)buffer == "play") {
+                                player.play();
+                            } else if ((string)buffer == "pause") {
+                                player.pause();
+                            } else if ((string)buffer == "prev") {
+                                player.previous();
+                            } else if ((string)buffer == "next") {
+                                player.next();
+                            } else if ((string)buffer == "stop") {
+                                player.stop();
+                            }
+                            break;
+                        } catch (Error e) {
+                            print(e.message);
+                        }
+                    }
+                }
+
+                impl.name_owner_changed.connect(on_name_owner_changed);
+            } catch (Error e) {
+                print("Failed to initialise dbus: %s", e.message);
+            }
+        }
+
+        return new JSCore.Value.undefined (ctx);
+    }
+
     const JSCore.StaticFunction[] js_funcs = {
         { "run_desktop", js_run_desktop, JSCore.PropertyAttribute.ReadOnly },
         { "open_uri", js_open_uri, JSCore.PropertyAttribute.ReadOnly },
@@ -268,6 +365,7 @@ namespace Helper {
         { "getIconPath", js_get_icon_path, JSCore.PropertyAttribute.ReadOnly },
         { "getTime", js_get_time, JSCore.PropertyAttribute.ReadOnly },
         { "getDate", js_get_date, JSCore.PropertyAttribute.ReadOnly },
+        { "media_control", js_media_control, JSCore.PropertyAttribute.ReadOnly },
         { null, null, 0 }
     };
 

@@ -11,19 +11,19 @@ function Run4() {
   Utils.run_command("xdg-open https://twitter.com/BlankOnLinux/");
 }
 function Play(){
-  Utils.run_command("audacious -p");
+  Utils.media_control("play");
 }
 function Stop(){
-  Utils.run_command("audtool shutdown");
+  Utils.media_control("stop");
 }
 function Prev(){
-  Utils.run_command("audacious -r");
+  Utils.media_control("prev");
 }
 function Next(){
-  Utils.run_command("audacious -f");
+  Utils.media_control("next");
 }
 function Pause(){
-  Utils.run_command("audacious -u");
+  Utils.media_control("pause");
 }
 function Repeat(){
   Utils.run_command("audtool --playlist-repeat-toggle");
